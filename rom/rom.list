@@ -1,0 +1,24 @@
+Sections:
+00: "org0001:8000" (8000-8000)
+01: "text" (0-10)
+
+
+Source: "rom.s"
+                            	     1: ; compiles with vasm 2.0e
+                            	     2: 
+                            	     3:         .org            0x8000
+                            	     4:         .section        text
+                            	     5: 
+                            	     6: start:
+01:00000000 08201FE5        	     7:         ldr     r2,=0xdeadbeef
+01:00000004 0210A0E1        	     8:         mov     r1,r2
+01:00000008 FCFFFFEA        	     9:         b       start
+01:0000000C EFBEADDE        	    10:         .ltorg
+                            	    11: 
+
+
+Symbols by name:
+start                           01:00000000
+
+Symbols by value:
+00000000 start

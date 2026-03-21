@@ -1,0 +1,1 @@
+vasmarm_std -a2 -L rom.list -Fbin rom.s
