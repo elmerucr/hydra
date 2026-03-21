@@ -14,7 +14,7 @@ int main()
 {
 	ram = (uint8_t *)malloc(0x4000000); // 64mb
 
-	hydra_t *cpu = hydra_new(read8, write8, read32, write32);
+	hydra *cpu = hydra_new(read8, write8, read32, write32);
 
     write32(0x0, 0xe51f2008);
 	write32(0x4, 0xe1a01002);

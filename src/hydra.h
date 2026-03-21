@@ -31,34 +31,14 @@ enum register_names {
 	R13_SVC, R14_SVC
 };
 
-typedef struct {
-	uint32_t reg[27];
+struct hydra_t;
+typedef struct hydra_t hydra;
 
-    uint32_t pc;    // for convenience
-    bool branch;
-
-	//uint8_t idle;
-
-	bool fetch_valid;
-	bool decode_valid;
-	bool execute_valid;
-
-	uint32_t fetch;
-	uint32_t decode;
-	uint32_t execute;
-
-	hydra_read8 read8;
-	hydra_write8 write8;
-	hydra_read32 read32;
-	hydra_write32 write32;
-
-} hydra_t;
-
-hydra_t *hydra_new(hydra_read8 r8, hydra_write8 w8, hydra_read32 r32, hydra_write32 w32);
-void hydra_destroy(hydra_t *t);
-void hydra_reset(hydra_t *t);
-void hydra_tick(hydra_t *t);
-void hydra_execute(hydra_t *t);
+hydra *hydra_new(hydra_read8 r8, hydra_write8 w8, hydra_read32 r32, hydra_write32 w32);
+void hydra_destroy(hydra *h);
+void hydra_reset(hydra *h);
+void hydra_tick(hydra *h);
+void hydra_execute(hydra *h);
 
 #ifdef __cplusplus
 }

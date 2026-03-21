@@ -22,94 +22,117 @@ const unsigned int reg_index[16][4] = {
 	{ R15, R15,     R15,     R15     }
 };
 
-hydra_t *hydra_new(hydra_read8 r8, hydra_write8 w8, hydra_read32 r32, hydra_write32 w32)
-{
-	hydra_t *t = (hydra_t *)malloc(sizeof(hydra_t));
-	t->read8 = r8;
-	t->write8 = w8;
-	t->read32 = r32;
-	t->write32 = w32;
+struct hydra_t {
+	uint32_t reg[27];
 
-	return t;
+    uint32_t pc;    // for convenience
+    bool branch;
+
+	//uint8_t idle;
+
+	bool fetch_valid;
+	bool decode_valid;
+	bool execute_valid;
+
+	uint32_t fetch;
+	uint32_t decode;
+	uint32_t execute;
+
+	hydra_read8 read8;
+	hydra_write8 write8;
+	hydra_read32 read32;
+	hydra_write32 write32;
+
+};
+
+hydra *hydra_new(hydra_read8 r8, hydra_write8 w8, hydra_read32 r32, hydra_write32 w32)
+{
+	hydra *h = (hydra *)malloc(sizeof(hydra));
+	h->read8 = r8;
+	h->write8 = w8;
+	h->read32 = r32;
+	h->write32 = w32;
+
+	return h;
 }
 
-void hydra_destroy(hydra_t *t)
+void hydra_destroy(hydra *h)
 {
-	free(t);
+	free(h);
 }
 
-void hydra_reset(hydra_t *t)
+void hydra_reset(hydra *h)
 {
-	t->reg[R15] = 0x0c000003;
+	h->reg[R15] = 0x0c000003;
     // 0b000011'000000000000000000000000'11 in binary, NZCVIF'ProgramCounter'M1:M0
 	// I and F bits set to prevent interrupts, processor in SVC mode (supervisor)
     // all other registers are undefined
 
-	t->execute_valid = false;
-	t->decode_valid = false;
-	t->fetch_valid = false;
+	h->execute_valid = false;
+	h->decode_valid = false;
+	h->fetch_valid = false;
 
-	//t->idle = 4;
+	//h->idle = 4;
 }
 
-void hydra_tick(hydra_t *t)
+void hydra_tick(hydra *h)
 {
-	// if (t->idle) {
-	// 	t->idle--;
+	// if (h->idle) {
+	// 	h->idle--;
 	// 	return;
 	// }
 
-	t->pc = t->reg[15] & 0x03fffffc;
+	h->pc = h->reg[15] & 0x03fffffc;
 
 	// Fetch
-	t->fetch = t->read32(t->pc);
-    t->fetch_valid = true;
-	printf("pc:%08x  fetched:%08x  ", t->pc, t->fetch);
+	h->fetch = h->read32(h->pc);
+    h->fetch_valid = true;
+	printf("pc:%08x  fetched:%08x  ", h->pc, h->fetch);
 
 	// Decode
-	if (t->decode_valid) {
+	if (h->decode_valid) {
         // yes, decode... does this actually do something in an emulator?
-        printf("decode:%08x  ", t->decode);
+        printf("decode:%08x  ", h->decode);
     } else {
         printf("decode:--------  ");
     }
 
     // Always reset branch flag
-    t->branch = false;
+    h->branch = false;
 
 	// Execute
-	if (t->execute_valid) {
-        printf("execute: %08x\n", t->execute);
+	if (h->execute_valid) {
+        printf("execute: %08x\n", h->execute);
 		// if condition is right... then
-        hydra_execute(t);
+        hydra_execute(h);
 	} else {
         printf("execute: --------\n");
     }
 
     // Only increase pc if branch flag not set
-    if (t->branch == false) {
-	    t->reg[R15] = (t->reg[R15] & 0xfc000003) | ((t->pc + 4) & 0x03fffffc);
+    if (h->branch == false) {
+	    h->reg[R15] = (h->reg[R15] & 0xfc000003) | ((h->pc + 4) & 0x03fffffc);
     }
 
     // Move everything in the pipeline
-	t->execute = t->decode;
-	t->execute_valid = t->decode_valid;
+	h->execute = h->decode;
+	h->execute_valid = h->decode_valid;
 
-    t->decode = t->fetch;
-    t->decode_valid = t->fetch_valid;
+    h->decode = h->fetch;
+    h->decode_valid = h->fetch_valid;
 }
 
-void hydra_execute(hydra_t *t)
+void hydra_execute(hydra *h)
 {
-    if (((t->execute & 0x0e000000) >> 25) == 0b101) {
-        t->branch = true;
-		if (t->execute & 0x01000000) {
+    if (((h->execute & 0x0e000000) >> 25) == 0b101) {
+        h->branch = true;
+		if (h->execute & 0x01000000) {
 			// link register, fixme; need to subtract 4 before writing into R14
-			t->reg[reg_index[14][t->reg[15] & 0b11]] = t->reg[R15];
+			h->reg[reg_index[14][h->reg[15] & 0b11]] = h->reg[R15];
 		}
-        t->pc += ((t->execute & 0xffffff) << 2);
-	    t->reg[R15] = (t->reg[R15] & 0xfc000003) | (t->pc & 0x03fffffc);
-        t->fetch_valid = false;
-        t->decode_valid = false;
+        h->pc += ((h->execute & 0xffffff) << 2);
+	    h->reg[R15] = (h->reg[R15] & 0xfc000003) | (h->pc & 0x03fffffc);
+        h->fetch_valid = false;
+        h->decode_valid = false;
     }
 }
