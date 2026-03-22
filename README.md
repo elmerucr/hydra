@@ -15,3 +15,7 @@ Work in Progress. ARM2 (VL86C010) emulation written in C.
 * [vrEmu6502](https://github.com/visrealm/vrEmu6502) - 6502/65C02 emulator library (C99) by Troy Schrapel.
 
 ## References
+
+Jaggar, Dave. 1996. ARM Architecture Reference Manual DDI 0100B. Advanced RISC Machines Ltd.
+
+VLSI Technology, Inc. 1990. Acorn Risc Machine (ARM) Family Data Manual. Prentice Hall.

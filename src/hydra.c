@@ -26,7 +26,7 @@ struct hydra_t {
 	uint32_t reg[27];
 
     uint32_t pc;    // for convenience
-    bool branch;
+    bool did_branch;
 
 	//uint8_t idle;
 
@@ -98,7 +98,7 @@ void hydra_tick(hydra *h)
     }
 
     // Always reset branch flag
-    h->branch = false;
+    h->did_branch = false;
 
 	// Execute
 	if (h->execute_valid) {
@@ -109,8 +109,8 @@ void hydra_tick(hydra *h)
         printf("execute: --------\n");
     }
 
-    // Only increase pc if branch flag not set
-    if (h->branch == false) {
+    // Increase pc if no branch, store in R15
+    if (h->did_branch == false) {
 	    h->reg[R15] = (h->reg[R15] & 0xfc000003) | ((h->pc + 4) & 0x03fffffc);
     }
 
@@ -125,10 +125,11 @@ void hydra_tick(hydra *h)
 void hydra_execute(hydra *h)
 {
     if (((h->execute & 0x0e000000) >> 25) == 0b101) {
-        h->branch = true;
+        h->did_branch = true;
 		if (h->execute & 0x01000000) {
-			// link register, fixme; need to subtract 4 before writing into R14
-			h->reg[reg_index[14][h->reg[15] & 0b11]] = h->reg[R15];
+			uint32_t pc = (h->pc - 4) & 0x03fffffc;
+			// link register, fixme
+			h->reg[reg_index[14][h->reg[15] & 0b11]] = (h->reg[R15] & 0xfc000003) | pc;
 		}
         h->pc += ((h->execute & 0xffffff) << 2);
 	    h->reg[R15] = (h->reg[R15] & 0xfc000003) | (h->pc & 0x03fffffc);
