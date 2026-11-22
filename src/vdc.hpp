@@ -44,7 +44,7 @@ public:
         uint32_t tileset_addr,
         uint8_t  tile_w,
         uint8_t  tile_h,
-        bool     repeat = false
+        bool     repeat
     );
 
 };

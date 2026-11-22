@@ -206,7 +206,9 @@ int main(int argc, char* argv[]) {
     vdc.ram[0x87] = 1;
     vdc.ram[0x88] = 0;
 
-    uint16_t x=0;
+    int16_t x = 0;
+    int16_t y = 0;
+
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -227,9 +229,9 @@ int main(int argc, char* argv[]) {
 
         vdc.clear(0x93);
 
-        vdc.blit_tilemap(0x000080, x, 53, 3, 3, 0x30000, 16, 16, true);
-        x++;
-        if (x==48) x = 0;
+        vdc.blit_tilemap(0x000080, x, y, 3, 3, 0x30000, 16, 16, true);
+        x++; y++;
+        if (x==48) { x = 0; y = 0; }
 
         for (int i=0; i<100; i++) {
             vdc.blit_sprite(
@@ -249,7 +251,7 @@ int main(int argc, char* argv[]) {
         }
 
         // do checkerboard
-        vdc.blit_tilemap(0x000080, 43, 43, 3, 3, 0, 8, 8);
+        vdc.blit_tilemap(0x000080, 43, 43, 3, 3, 0, 8, 8, false);
 
 		void *pixels;
 		int pitch;
