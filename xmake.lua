@@ -1,6 +1,6 @@
 add_rules("mode.debug", "mode.release")
 set_defaultmode("release")
-set_languages("c++17")
+set_languages("c++26")
 
 set_optimize("fastest") -- or "aggressive"
 

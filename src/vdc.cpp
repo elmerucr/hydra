@@ -30,6 +30,8 @@ void vdc_t::blit_sprite(
     }
 
     // 2. Clip rectangle upfront
+    const int orig_dst_x = dst_x;
+    const int orig_dst_y = dst_y;
     int src_x = 0;
     int src_y = 0;
     int w_clip = sprite_w;
@@ -56,13 +58,16 @@ void vdc_t::blit_sprite(
     uint32_t offset = static_cast<uint32_t>(sprite_id) * sprite_w * sprite_h;
     gfx_addr = (gfx_addr + offset) & (RAM_SIZE - 1);
 
-    const std::size_t last_byte = static_cast<std::size_t>(gfx_addr) + ((src_y + h_clip - 1) * sprite_w) + (src_x + w_clip);
-    if (last_byte > RAM_SIZE) {
+    const std::size_t sprite_bytes = static_cast<std::size_t>(sprite_w) * sprite_h;
+    if (static_cast<std::size_t>(gfx_addr) + sprite_bytes > RAM_SIZE) {
         return;
     }
 
     // 4. Fast pointer-based scanline loop
-    const int src_start_y = flip_y ? (src_y + h_clip - 1) : src_y;
+    const int skip_left = dst_x - orig_dst_x;
+    const int skip_top  = dst_y - orig_dst_y;
+
+    const int src_start_y = flip_y ? ((static_cast<int>(sprite_h) - 1) - skip_top) : src_y;
     const int src_y_step  = flip_y ? -static_cast<int>(sprite_w) : static_cast<int>(sprite_w);
 
     const uint8_t* __restrict src_row = ram.data() + gfx_addr + (src_start_y * sprite_w);
@@ -102,7 +107,7 @@ void vdc_t::blit_sprite(
             dst_row += PIXELS_PER_SCANLINE;
         }
     } else {
-        const int flip_start = src_x + w_clip - 1;
+        const int flip_start = (static_cast<int>(sprite_w) - 1) - skip_left;
 
         for (int y = 0; y < h_clip; ++y) {
             for (int x = 0; x < w_clip; ++x) {
@@ -127,6 +132,8 @@ void vdc_t::blit_tilemap(
     uint32_t tileset_addr,
     uint8_t  tile_w,
     uint8_t  tile_h,
+    bool     flip_x,
+    bool     flip_y,
     bool     repeat
 )
 {
@@ -159,56 +166,18 @@ void vdc_t::blit_tilemap(
         }
     }
 
-    const uint32_t tile_bytes = static_cast<uint32_t>(tile_w) * tile_h;
-
     // 2. Row-major loop over visible screen cells
     for (int ty = y_start; ty < y_end; ++ty) {
         const int16_t py = static_cast<int16_t>(dst_y + (ty * tile_h));
-        const bool y_unclipped = (py >= 0) && (py + tile_h <= SCANLINES);
-
         const int map_y = repeat ? (((ty % map_h) + map_h) % map_h) : ty;
         const uint32_t row_map_offset = map_addr + (map_y * map_w);
 
         for (int tx = x_start; tx < x_end; ++tx) {
             const int map_x = repeat ? (((tx % map_w) + map_w) % map_w) : tx;
             const uint8_t tile_id = ram[(row_map_offset + map_x) & (RAM_SIZE - 1)];
-
             const int16_t px = static_cast<int16_t>(dst_x + (tx * tile_w));
 
-            // 3. Fast unclipped path for interior tiles
-            if (y_unclipped && px >= 0 && (px + tile_w <= PIXELS_PER_SCANLINE)) {
-                const uint32_t src_addr = (tileset_addr + static_cast<uint32_t>(tile_id) * tile_bytes) & (RAM_SIZE - 1);
-                if (src_addr + tile_bytes > RAM_SIZE) {
-                    continue;
-                }
-
-                const uint8_t* __restrict src_row = ram.data() + src_addr;
-                uint8_t* __restrict dst_row = buffer.data() + (py * PIXELS_PER_SCANLINE) + px;
-
-                for (int sy = 0; sy < tile_h; ++sy) {
-                    int sx = 0;
-                    for (; sx <= tile_w - 8; sx += 8) {
-                        uint64_t chunk;
-                        std::memcpy(&chunk, src_row + sx, sizeof(uint64_t));
-                        if (chunk == 0) {
-                            continue;
-                        }
-                        for (int i = 0; i < 8; ++i) {
-                            uint8_t val = src_row[sx + i];
-                            if (val) dst_row[sx + i] = val;
-                        }
-                    }
-                    for (; sx < tile_w; ++sx) {
-                        uint8_t val = src_row[sx];
-                        if (val) dst_row[sx] = val;
-                    }
-                    src_row += tile_w;
-                    dst_row += PIXELS_PER_SCANLINE;
-                }
-            } else {
-                // Edge tiles fall back to standard clipped blit
-                blit_sprite(tileset_addr, px, py, tile_w, tile_h, tile_id, false, false);
-            }
+            blit_sprite(tileset_addr, px, py, tile_w, tile_h, tile_id, flip_x, flip_y);
         }
     }
 }

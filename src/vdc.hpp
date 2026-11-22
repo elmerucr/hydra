@@ -44,6 +44,8 @@ public:
         uint32_t tileset_addr,
         uint8_t  tile_w,
         uint8_t  tile_h,
+        bool     flip_x,
+        bool     flip_y,
         bool     repeat
     );
 
