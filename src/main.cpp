@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("hydra (SDL3 + Lua 5.5)", 960, 540, SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("hydra", 960, 540, SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE);
     if (!window) {
         std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
         SDL_Quit();
@@ -222,6 +222,8 @@ int main(int argc, char* argv[]) {
     bool hor_flip;
     int16_t hero_x = 155;
     int16_t hero_y = 149;
+    bool hor_double;
+    bool ver_double;
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -239,6 +241,8 @@ int main(int argc, char* argv[]) {
 
         upside_down = keys[SDL_SCANCODE_V] ? true : false;
         hor_flip = keys[SDL_SCANCODE_H] ? true : false;
+        hor_double = keys[SDL_SCANCODE_X] ? true : false;
+        ver_double = keys[SDL_SCANCODE_Y] ? true : false;
         if (keys[SDL_SCANCODE_RIGHT]) hero_x++;
         if (keys[SDL_SCANCODE_LEFT]) hero_x--;
         if (keys[SDL_SCANCODE_UP]) hero_y--;
@@ -249,7 +253,7 @@ int main(int argc, char* argv[]) {
 
         vdc.clear(0x93);
 
-        vdc.blit_tilemap(0x000080, x, y, 3, 3, 0x30000, 16, 16, hor_flip, upside_down, true);
+        vdc.blit_tilemap(0x000080, x, y, 3, 3, hor_flip, upside_down, hor_double, ver_double, true, 0x30000, 16, 16);
         x++; y++;
         if (x==48) { x = -48; y = -48; }
 
@@ -262,6 +266,8 @@ int main(int argc, char* argv[]) {
                 16,
                 swordmaster_array[i].dy == 1 ? 0 : 1,
                 swordmaster_array[i].dx == 1 ? false : true,
+                false,
+                false,
                 false
             );
             swordmaster_array[i].x += swordmaster_array[i].dx;
@@ -271,10 +277,10 @@ int main(int argc, char* argv[]) {
         }
 
         // do checkerboard
-        vdc.blit_tilemap(0x000080, 43, 43, 3, 3, 0, 8, 8, false, false, false);
+        vdc.blit_tilemap(0x000080, 43, 43, 3, 3, false, false, false, false, false, 0x000000, 8, 8);
 
         // hero
-        vdc.blit_sprite(0x30200, hero_x, hero_y, 10, 31, 0, hor_flip, upside_down);
+        vdc.blit_sprite(0x30200, hero_x, hero_y, 10, 31, 0, hor_flip, upside_down, hor_double, ver_double);
 
 		void *pixels;
 		int pitch;
