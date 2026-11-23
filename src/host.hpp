@@ -15,10 +15,10 @@
 
 class host_t {
 private:
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
 
-
-    bool scanlines = true;
-    uint8_t scanlines_alpha = 0xaa;
 public:
     host_t();
     ~host_t();
