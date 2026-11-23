@@ -16,6 +16,20 @@
 
 #include "common.hpp"
 
+typedef struct {
+    uint32_t gfx_addr;
+    int16_t  dst_x;
+    int16_t  dst_y;
+    uint8_t  sprite_w;
+    uint8_t  sprite_h;
+    uint8_t  sprite_id;
+    bool     flip_x;
+    bool     flip_y;
+    bool     double_x;
+    bool     double_y;
+} sprite_t;
+
+
 // Virtual Display Controller (VDC) for the hydra engine.
 // Manages the indexed framebuffer (`buffer`, 320x180 by default via
 // PIXELS_PER_SCANLINE x SCANLINES) and main system memory (`ram`),
@@ -65,6 +79,22 @@ public:
         bool     double_x,
         bool     double_y
     );
+
+    // short hand overloaded function that takes a pointer to a sprite_t struct
+    inline void blit_sprite(sprite_t *s) {
+        blit_sprite(
+            s->gfx_addr,
+            s->dst_x,
+            s->dst_y,
+            s->sprite_w,
+            s->sprite_h,
+            s->sprite_id,
+            s->flip_x,
+            s->flip_y,
+            s->double_x,
+            s->double_y
+        );
+    }
 
     // Renders a `map_w x map_h` grid of byte-sized tile indices starting at
     // `map_addr` in `ram`, using `blit_sprite` to draw every visible cell.

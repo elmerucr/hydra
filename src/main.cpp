@@ -80,9 +80,6 @@ static int l_set_bg_color(lua_State* L) {
     return 0;
 }
 
-// static int l_pset(lua_State *L) {
-// 	uint8_t x = static_cast<uint8_t>(luaL_checkinteger(L, 1));
-// }
 
 inline uint32_t video_blend(uint32_t c0, uint32_t c1) {
 	return
@@ -145,7 +142,14 @@ int main(int argc, char* argv[]) {
 
 
     std::memcpy(vdc.ram.data() + 0x30000, swordmaster, sizeof(swordmaster));
+
     std::memcpy(vdc.ram.data() + 0x30200, hero, sizeof(hero));
+    sprite_t hero_girl = {
+        .gfx_addr = 0x30200,
+        .sprite_w = 10,
+        .sprite_h = 31,
+        .sprite_id = 0
+    };
     
 
     // 2. Initialize Lua and register C++ callback
@@ -279,8 +283,15 @@ int main(int argc, char* argv[]) {
         // do checkerboard
         vdc.blit_tilemap(0x000080, 43, 43, 3, 3, false, false, false, false, false, 0x000000, 8, 8);
 
-        // hero
-        vdc.blit_sprite(0x30200, hero_x, hero_y, 10, 31, 0, hor_flip, upside_down, hor_double, ver_double);
+        // hero girl
+        hero_girl.dst_x = hero_x;
+        hero_girl.dst_y = hero_y;
+        hero_girl.flip_x = hor_flip;
+        hero_girl.flip_y = upside_down;
+        hero_girl.double_x = hor_double;
+        hero_girl.double_y = ver_double;
+        
+        vdc.blit_sprite(&hero_girl);
 
 		void *pixels;
 		int pitch;
