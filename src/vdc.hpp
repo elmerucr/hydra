@@ -16,6 +16,9 @@
 
 #include "common.hpp"
 
+// POD-style descriptor bundling a sprite's source location in `ram`,
+// destination screen coordinates, frame dimensions and index, and flip/2x-scale
+// flags for convenient passing and reuse (including future Lua bindings).
 typedef struct {
     uint32_t gfx_addr;
     int16_t  dst_x;
@@ -80,8 +83,11 @@ public:
         bool     double_y
     );
 
-    // short hand overloaded function that takes a pointer to a sprite_t struct
+    // Convenience overload that unpacks a `sprite_t` descriptor pointer and
+    // forwards its fields directly to the explicit `blit_sprite` implementation.
+    // Assumes `s` is non-null.
     inline void blit_sprite(sprite_t *s) {
+        if (!s) return;
         blit_sprite(
             s->gfx_addr,
             s->dst_x,
