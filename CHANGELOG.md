@@ -1,5 +1,6 @@
 ## Version ...
 
+* 20261123 build system: xmake --> cmake
 * 20261122 vdc: added double_x and double_y everywhere
 * 20261122 vdc: blit_tilemap has flip_x, flip_y
 * 20261121 vdc: blit_sprite has flip_x, flip_y
