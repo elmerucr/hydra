@@ -129,8 +129,8 @@ void system_t::run()
     rca_t rca;
     pos swordmaster_array[100];
     for (int i = 0; i < 100; i++) {
-        swordmaster_array[i].x = rca.next_range(0, 320 - 16);
-        swordmaster_array[i].y = rca.next_range(0, 180 - 16);
+        swordmaster_array[i].x = rca.next_range(0, PIXELS_PER_SCANLINE - 16);
+        swordmaster_array[i].y = rca.next_range(0, SCANLINES - 16);
         swordmaster_array[i].dx = rca.next_bit() ? 1 : -1;
         swordmaster_array[i].dy = rca.next_bit() ? 1 : -1;
     }

@@ -199,7 +199,7 @@ bool host_t::key_released(input_key_t key) const
 {
     const std::size_t idx = key_index(key);
     return !key_current[idx] && key_previous[idx];
-}
+} 
 
 void host_t::video_update_screen(const uint8_t *buffer, uint8_t bg_r, uint8_t bg_g, uint8_t bg_b)
 {
