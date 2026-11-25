@@ -5,18 +5,15 @@
 // Copyright © 2026 elmerucr. All rights reserved.
 // ---------------------------------------------------------------------
 
-#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <lua.hpp>
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 
-#include "common.hpp"
+#include "system.hpp"
+#include "host.hpp"
 #include "rca.hpp"
 #include "vdc.hpp"
-
-#include <cstdint>
 
 const uint8_t hero[] = {
     #embed "hero.bin"
@@ -61,9 +58,6 @@ constexpr uint8_t swordmaster[16 * 32] = {
     0x00, 0x01, 0x02, 0x02, 0x00, 0x00, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // Row 15 (back): Boot soles
 };
 
-const bool scanlines = true;
-const uint8_t scanlines_alpha = 0xaa;
-
 // Shared state controlled by Lua
 struct AppState {
     uint8_t r;
@@ -80,66 +74,19 @@ static int l_set_bg_color(lua_State* L) {
     return 0;
 }
 
-
-inline uint32_t video_blend(uint32_t c0, uint32_t c1) {
-	return
-		((((c0 & 0x00ff00ff) + (c1 & 0x00ff00ff)) >> 1) & 0x00ff00ff) |
-		((((c0 & 0x0000ff00) + (c1 & 0x0000ff00)) >> 1) & 0x0000ff00) |
-		(scanlines_alpha << 24); // alpha
-}
-
-
 int main(int argc, char* argv[]) {
-    alignas(64) uint32_t blend_lut[256][256];
+    (void)argc;
+    (void)argv;
 
-    for (int i=0; i<256; i++) {
-        uint32_t c0 = palette[i];
-        for (int j=0; j<256; j++) {
-            blend_lut[i][j] = video_blend(c0, palette[j]);
-        }
-    }
+	system_t *system = new system_t();
+	system->run();
 
-	vdc_t vdc;
-
-    // 1. Initialize SDL3
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        std::cerr << "[SDL] SDL_Init failed: " << SDL_GetError() << "\n";
+    host_t host;
+    if (!host.video_init()) {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("hydra", 960, 540, SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE);
-    if (!window) {
-        std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
-        SDL_Quit();
-        return 1;
-    }
-	SDL_SetWindowAspectRatio(window, (float)PIXELS_PER_SCANLINE/SCANLINES, (float)PIXELS_PER_SCANLINE/SCANLINES);
-	SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (!renderer) {
-        std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-	SDL_SetRenderVSync(renderer, 1);
-	int i;
-    SDL_GetRenderVSync(renderer, &i);
-	if (i) {
-        printf("[SDL] vsync every %i frame(s)\n", i);
-    } else {
-		printf("[SDL] vsync is off\n");
-    }
-
-	SDL_SetRenderLogicalPresentation(renderer, PIXELS_PER_SCANLINE, SCANLINES, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-	SDL_HideCursor();				// make sure cursor isn't visible
-
-	SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, PIXELS_PER_SCANLINE, 2*SCANLINES);
-	uint8_t vdc_texture_bytes_per_pixel = (SDL_BITSPERPIXEL(texture->format) >> 3);
-	SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_PIXELART);
-	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
-
+    vdc_t vdc;
 
     std::memcpy(vdc.ram.data() + 0x30000, swordmaster, sizeof(swordmaster));
 
@@ -150,32 +97,31 @@ int main(int argc, char* argv[]) {
         .sprite_h = 31,
         .sprite_id = 0
     };
-    
 
-    // 2. Initialize Lua and register C++ callback
-    AppState state;
+    // Initialize Lua and register C++ callback
+    AppState state = { 0, 0, 0 };
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
 
-	std::cout << "[Lua] Release: " << LUA_RELEASE << "\n"; // e.g., "Lua 5.5.1"
+    std::cout << "[Lua] Release: " << LUA_RELEASE << "\n";
 
     lua_pushlightuserdata(L, &state);
     lua_pushcclosure(L, l_set_bg_color, 1);
     lua_setglobal(L, "set_bg_color");
 
-    // 3. Run an inline Lua script to set initial color and define a key handler
+    // Run an inline Lua script to set initial color and define a key handler
     const char* lua_script = R"lua(
-        print("Running " .. _VERSION .. " inside SDL3!")
-		r = 0
-		g = 0
-		b = 0
+        print("Running " .. _VERSION .. " inside hydra!")
+        r = 0
+        g = 0
+        b = 0
         set_bg_color(r, g, b) -- Initial black
 
         function on_space_pressed()
-		  r = math.random(0, 255)
-		  g = math.random(0, 255)
-		  b = math.random(0, 255)
-    	  set_bg_color(r, g, b)
+          r = math.random(0, 255)
+          g = math.random(0, 255)
+          b = math.random(0, 255)
+          set_bg_color(r, g, b)
         end
     )lua";
 
@@ -183,10 +129,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Lua error: " << lua_tostring(L, -1) << "\n";
         lua_pop(L, 1);
     }
-
-    // 4. Main SDL3 event and render loop
-    bool running = true;
-    SDL_Event event;
 
     typedef struct {
         int x;
@@ -197,14 +139,14 @@ int main(int argc, char* argv[]) {
 
     rca_t rca;
     pos swordmaster_array[100];
-    for (int i=0;i<100;i++) {
-        swordmaster_array[i].x = rca.next_range(0,320-16);
-        swordmaster_array[i].y = rca.next_range(0,180-16);
+    for (int i = 0; i < 100; i++) {
+        swordmaster_array[i].x = rca.next_range(0, 320 - 16);
+        swordmaster_array[i].y = rca.next_range(0, 180 - 16);
         swordmaster_array[i].dx = rca.next_bit() ? 1 : -1;
         swordmaster_array[i].dy = rca.next_bit() ? 1 : -1;
     }
 
-    for (int i=0; i<64; i++) {
+    for (int i = 0; i < 64; i++) {
         vdc.ram[0x000000 + i] = 0x18;
         vdc.ram[0x000040 + i] = 0x45;
     }
@@ -221,47 +163,39 @@ int main(int argc, char* argv[]) {
     int16_t x = -48;
     int16_t y = -48;
 
-    const bool *keys = SDL_GetKeyboardState(NULL);
-    bool upside_down;
-    bool hor_flip;
     int16_t hero_x = 155;
     int16_t hero_y = 149;
-    bool hor_double;
-    bool ver_double;
 
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                running = false;
-            } else if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_SPACE) {
-                // Call Lua function when Space is pressed
-                lua_getglobal(L, "on_space_pressed");
-                if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-                    std::cerr << "Lua callback error: " << lua_tostring(L, -1) << "\n";
-                    lua_pop(L, 1);
-                }
+    while (host.is_running()) {
+        host.process_events();
+
+        if (host.key_pressed(input_key_t::space)) {
+            lua_getglobal(L, "on_space_pressed");
+            if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+                std::cerr << "Lua callback error: " << lua_tostring(L, -1) << "\n";
+                lua_pop(L, 1);
             }
         }
 
-        upside_down = keys[SDL_SCANCODE_V] ? true : false;
-        hor_flip = keys[SDL_SCANCODE_H] ? true : false;
-        hor_double = keys[SDL_SCANCODE_X] ? true : false;
-        ver_double = keys[SDL_SCANCODE_Y] ? true : false;
-        if (keys[SDL_SCANCODE_RIGHT]) hero_x++;
-        if (keys[SDL_SCANCODE_LEFT]) hero_x--;
-        if (keys[SDL_SCANCODE_UP]) hero_y--;
-        if (keys[SDL_SCANCODE_DOWN]) hero_y++;
+        const bool upside_down = host.key_down(input_key_t::v);
+        const bool hor_flip    = host.key_down(input_key_t::h);
+        const bool hor_double  = host.key_down(input_key_t::x);
+        const bool ver_double  = host.key_down(input_key_t::y);
 
-        SDL_SetRenderDrawColor(renderer, state.r, state.g, state.b, 255);
-        SDL_RenderClear(renderer);
+        if (host.key_down(input_key_t::right)) hero_x++;
+        if (host.key_down(input_key_t::left))  hero_x--;
+        if (host.key_down(input_key_t::up))    hero_y--;
+        if (host.key_down(input_key_t::down))  hero_y++;
+
+        
 
         vdc.clear(0x93);
 
         vdc.blit_tilemap(0x000080, x, y, 3, 3, hor_flip, upside_down, hor_double, ver_double, true, 0x30000, 16, 16);
         x++; y++;
-        if (x==48) { x = -48; y = -48; }
+        if (x == 48) { x = -48; y = -48; }
 
-        for (int i=0; i<100; i++) {
+        for (int i = 0; i < 100; i++) {
             vdc.blit_sprite(
                 0x30000,
                 swordmaster_array[i].x,
@@ -275,9 +209,9 @@ int main(int argc, char* argv[]) {
                 false
             );
             swordmaster_array[i].x += swordmaster_array[i].dx;
-            if (swordmaster_array[i].x < 1 || swordmaster_array[i].x > (320-16)) swordmaster_array[i].dx = -swordmaster_array[i].dx;
+            if (swordmaster_array[i].x < 1 || swordmaster_array[i].x > (320 - 16)) swordmaster_array[i].dx = -swordmaster_array[i].dx;
             swordmaster_array[i].y += swordmaster_array[i].dy;
-            if (swordmaster_array[i].y < 1 || swordmaster_array[i].y > (180-16)) swordmaster_array[i].dy = -swordmaster_array[i].dy;
+            if (swordmaster_array[i].y < 1 || swordmaster_array[i].y > (180 - 16)) swordmaster_array[i].dy = -swordmaster_array[i].dy;
         }
 
         // do checkerboard
@@ -290,58 +224,15 @@ int main(int argc, char* argv[]) {
         hero_girl.flip_y = upside_down;
         hero_girl.double_x = hor_double;
         hero_girl.double_y = ver_double;
-        
+
         vdc.blit_sprite(&hero_girl);
 
-		void *pixels;
-		int pitch;
-
-		SDL_LockTexture(texture, nullptr, &pixels, &pitch);
-
-        const int stride = pitch / vdc_texture_bytes_per_pixel;
-        const int row_advance = (stride * 2) - PIXELS_PER_SCANLINE;
-
-        const uint8_t *cur_pix_src = vdc.buffer.data();
-        const uint8_t *nxt_pix_src = cur_pix_src + PIXELS_PER_SCANLINE;
-        uint32_t *cur_pix_dst = static_cast<uint32_t *>(pixels);
-        uint32_t *nxt_pix_dst = cur_pix_dst + stride;
-
-        if (scanlines) {
-			for (int y = 0; y < SCANLINES; y++) {
-				if (y == (SCANLINES - 1)) nxt_pix_src = cur_pix_src;
-				for (int x = 0; x < PIXELS_PER_SCANLINE; x++) {
-                    const uint8_t idx0 = *cur_pix_src++;
-                    const uint8_t idx1 = *nxt_pix_src++;
-					*cur_pix_dst++ = palette[idx0];
-					*nxt_pix_dst++ = blend_lut[idx0][idx1];
-                }
-				cur_pix_dst += row_advance;
-				nxt_pix_dst += row_advance;
-			}
-        } else {
-            for (int y=0; y < SCANLINES; y++) {
-                for (int x=0; x < PIXELS_PER_SCANLINE; x++) {
-                    const uint32_t c0 = palette[*cur_pix_src++];
-                    *cur_pix_dst++ = c0;
-                    *nxt_pix_dst++ = c0;
-                }
-                cur_pix_dst += row_advance;
-                nxt_pix_dst += row_advance;
-            }
-        }
-
-		SDL_UnlockTexture(texture);
-
-		SDL_RenderTexture(renderer, texture, nullptr, nullptr);
-        SDL_RenderPresent(renderer);
+        host.video_update_screen(vdc.buffer.data(), state.r, state.g, state.b);
     }
 
-    // 5. Clean up
     lua_close(L);
-	SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+
+	delete system;
 
     return 0;
 }
