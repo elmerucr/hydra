@@ -34,11 +34,11 @@ host_t::host_t()
     , video_texture_bytes_per_pixel(4)
     , video_scanlines(true)
     , video_scanlines_alpha(0xaa)
-    , running(true)
     , video_blend_lut{}
     , key_current{}
     , key_previous{}
 {
+    video_init();
 }
 
 host_t::~host_t()
@@ -58,8 +58,6 @@ void host_t::video_init_blend_lut()
 
 bool host_t::video_init()
 {
-    running = true;
-
     video_init_blend_lut();
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -168,23 +166,22 @@ void host_t::update_key_current()
     key_current[key_index(input_key_t::y)]     = sdl_keys[SDL_SCANCODE_Y];
 }
 
-void host_t::process_events()
+enum events_output_state host_t::events_process_events()
 {
+    enum events_output_state return_value = NO_EVENT;
+
     key_previous = key_current;
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
-            running = false;
+            return_value = QUIT_EVENT;
         }
     }
 
     update_key_current();
-}
 
-bool host_t::is_running() const
-{
-    return running;
+    return return_value;
 }
 
 bool host_t::key_down(input_key_t key) const

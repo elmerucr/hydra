@@ -1,5 +1,7 @@
 ## Version ...
 
+* 20261125 system: abstraction layer
+* 20261124 host: sdl3 moved here
 * 20261123 build system: xmake --> cmake
 * 20261122 vdc: added double_x and double_y everywhere
 * 20261122 vdc: blit_tilemap has flip_x, flip_y

@@ -16,6 +16,12 @@
 
 #include "common.hpp"
 
+enum events_output_state {
+	QUIT_EVENT = -1,
+	NO_EVENT = 0,
+	KEYPRESS_EVENT = 1
+};
+
 enum class input_key_t : uint8_t {
     up,
     down,
@@ -41,8 +47,6 @@ private:
     bool    video_scanlines;
     uint8_t video_scanlines_alpha;
 
-    bool    running;    // TODO: remove here
-
     std::array<bool, static_cast<std::size_t>(input_key_t::count)> key_current;
     std::array<bool, static_cast<std::size_t>(input_key_t::count)> key_previous;
 
@@ -56,8 +60,7 @@ public:
     void video_shutdown();
     void video_update_screen(const uint8_t *buffer, uint8_t bg_r, uint8_t bg_g, uint8_t bg_b);
 
-    void process_events();
-    bool is_running() const;
+    enum events_output_state events_process_events();
 
     bool key_down(input_key_t key) const;
     bool key_pressed(input_key_t key) const;
