@@ -14,6 +14,10 @@ constexpr uint8_t hero[] = {
     #embed "hero.bin"
 };
 
+constexpr uint8_t hydra_data[] = {
+    #embed "hydra.bin"
+};
+
 // 16x16 Heroine with a Sword (0x00 = transparent, 0x01..0x0F = dark to bright greyscale)
 // [0..255]: facing front, sword on right (sprite_id 0)
 // [256..511]: facing back, sword on right (sprite_id 1)
@@ -69,11 +73,19 @@ system_t::system_t()
     vdc = new vdc_t();
     std::memcpy(vdc->ram.data() + 0x30000, swordmaster, sizeof(swordmaster));
     std::memcpy(vdc->ram.data() + 0x30200, hero, sizeof(hero));
+    std::memcpy(vdc->ram.data() + 0x30400, hydra_data, sizeof(hydra_data));
     
     hero_girl = {
         .gfx_addr = 0x30200,
         .sprite_w = 10,
         .sprite_h = 31,
+        .sprite_id = 0
+    };
+
+    hydra = {
+        .gfx_addr = 0x30400,
+        .sprite_w = 20,
+        .sprite_h = 20,
         .sprite_id = 0
     };
 
@@ -215,8 +227,11 @@ void system_t::run()
         hero_girl.flip_y = upside_down;
         hero_girl.double_x = hor_double;
         hero_girl.double_y = ver_double;
-
         vdc->blit_sprite(&hero_girl);
+
+        hydra.dst_x = 96;
+        hydra.dst_y = 64;
+        vdc->blit_sprite(&hydra);
 
         host->video_update_screen(vdc->buffer.data(), state.r, state.g, state.b);
     }

@@ -28,6 +28,7 @@ private:
     lua_State* L;
 
     sprite_t hero_girl;
+    sprite_t hydra;
     AppState state;
 
 public:

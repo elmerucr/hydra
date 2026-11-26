@@ -25,11 +25,11 @@ typedef struct {
     int16_t  dst_y;
     uint8_t  sprite_w;
     uint8_t  sprite_h;
-    uint8_t  sprite_id;
-    bool     flip_x;
-    bool     flip_y;
-    bool     double_x;
-    bool     double_y;
+    uint8_t  sprite_id = 0;
+    bool     flip_x = false;
+    bool     flip_y = false;
+    bool     double_x = false;
+    bool     double_y = false;
 } sprite_t;
 
 
