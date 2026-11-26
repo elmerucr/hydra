@@ -1,5 +1,6 @@
 ## Version ...
 
+* 20261126 vdc: repeat split into repeat_x and repeat_y for blit_tilemap
 * 20261125 system: abstraction layer
 * 20261124 host: sdl3 moved here
 * 20261123 build system: xmake --> cmake

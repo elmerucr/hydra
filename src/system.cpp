@@ -194,7 +194,19 @@ void system_t::run()
         
         vdc->clear(0x93);
 
-        vdc->blit_tilemap(0x000080, x, y, 3, 3, hor_flip, upside_down, hor_double, ver_double, true, 0x30000, 16, 16);
+        vdc->blit_tilemap(
+            0x000080,
+            136, y,
+            3,3,
+            hor_flip,
+            upside_down,
+            hor_double,
+            ver_double,
+            false,
+            true,
+            0x30000,
+            16,16
+        );
         x++; y++;
         if (x == 48) { x = -48; y = -48; }
 
@@ -218,7 +230,22 @@ void system_t::run()
         }
         
         // do checkerboard
-        vdc->blit_tilemap(0x000080, 43, 43, 3, 3, false, false, false, false, false, 0x000000, 8, 8);
+        vdc->blit_tilemap(
+            0x000080,
+            43,
+            43,
+            3,
+            3,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            0x000000,
+            8,
+            8
+        );
 
         // hero girl
         hero_girl.dst_x = hero_x;

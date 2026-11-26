@@ -131,7 +131,8 @@ void vdc_t::blit_tilemap(
     bool     flip_y,
     bool     double_x,
     bool     double_y,
-    bool     repeat,
+    bool     repeat_x,
+    bool     repeat_y,
 
     uint32_t gfx_addr,
     uint8_t  sprite_w,
@@ -167,29 +168,31 @@ void vdc_t::blit_tilemap(
     int x_end   = floor_div(PIXELS_PER_SCANLINE - 1 - dst_x, draw_tile_w) + 1;
     int y_end   = floor_div(SCANLINES - 1 - dst_y, draw_tile_h) + 1;
 
-    // For non-repeating maps, clamp grid coordinates to the finite `[0, map_w)`
-    // and `[0, map_h)` map bounds and exit early if nothing is visible.
-    if (!repeat) {
+    // For non-repeating axes, clamp grid coordinates to the finite `[0, map_w)`
+    // and/or `[0, map_h)` map bounds.
+    if (!repeat_x) {
         if (x_start < 0) x_start = 0;
+        if (x_end > map_w) x_end = map_w;
+    }
+    if (!repeat_y) {
         if (y_start < 0) y_start = 0;
-        if (x_end > map_w)   x_end = map_w;
-        if (y_end > map_h)   y_end = map_h;
-        if (x_start >= x_end || y_start >= y_end) {
-            return;
-        }
+        if (y_end > map_h) y_end = map_h;
+    }
+    if (x_start >= x_end || y_start >= y_end) {
+        return;
     }
 
     // 2. Iterate over visible grid cells in row-major order and delegate all
     //    actual pixel drawing and clipping to `blit_sprite`.
     for (int ty = y_start; ty < y_end; ++ty) {
         const int16_t py = static_cast<int16_t>(dst_y + (ty * draw_tile_h));
-        // Wrap `ty` into `[0, map_h)` when `repeat` is enabled (handling negative `ty`).
-        const int map_y = repeat ? (((ty % map_h) + map_h) % map_h) : ty;
+        // Wrap `ty` into `[0, map_h)` when `repeat_y` is enabled (handling negative `ty`).
+        const int map_y = repeat_y ? (((ty % map_h) + map_h) % map_h) : ty;
         const uint32_t row_map_offset = map_addr + (map_y * map_w);
 
         for (int tx = x_start; tx < x_end; ++tx) {
-            // Wrap `tx` into `[0, map_w)` when `repeat` is enabled (handling negative `tx`).
-            const int map_x = repeat ? (((tx % map_w) + map_w) % map_w) : tx;
+            // Wrap `tx` into `[0, map_w)` when `repeat_x` is enabled (handling negative `tx`).
+            const int map_x = repeat_x ? (((tx % map_w) + map_w) % map_w) : tx;
             const uint8_t tile_id = ram[(row_map_offset + map_x) & (RAM_SIZE - 1)];
             const int16_t px = static_cast<int16_t>(dst_x + (tx * draw_tile_w));
 

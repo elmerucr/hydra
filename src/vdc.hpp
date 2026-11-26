@@ -108,9 +108,9 @@ public:
     // Grid and scaling behavior:
     //   - Each cell's on-screen footprint is `sprite_w * (double_x ? 2 : 1)` by
     //     `sprite_h * (double_y ? 2 : 1)` pixels starting at `(dst_x, dst_y)`.
-    //   - When `repeat` is true, grid coordinates `(tx, ty)` wrap infinitely across
-    //     `[0, map_w)` and `[0, map_h)` (including negative indices). When false,
-    //     rendering is restricted to the finite `map_w x map_h` map bounds.
+    //   - `repeat_x` and `repeat_y` independently control whether grid indices
+    //     wrap across `[0, map_w)` and `[0, map_h)` (including negative indices)
+    //     or clamp to the finite map bounds.
     //   - `flip_x`, `flip_y`, `double_x`, and `double_y` are forwarded directly to
     //     `blit_sprite` for each individual tile.
     void blit_tilemap(
@@ -123,8 +123,9 @@ public:
         bool     flip_y,
         bool     double_x,
         bool     double_y,
-        bool     repeat,
-        
+        bool     repeat_x,
+        bool     repeat_y,
+
         uint32_t gfx_addr,
         uint8_t  sprite_w,
         uint8_t  sprite_h
