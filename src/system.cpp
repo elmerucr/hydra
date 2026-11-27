@@ -8,7 +8,9 @@
 #include <iostream>
 #include "system.hpp"
 #include "host.hpp"
+#include "nerve.hpp"
 #include "rca.hpp"
+#include "vdc.hpp"
 
 constexpr uint8_t hero[] = {
     #embed "hero.bin"
@@ -57,80 +59,44 @@ constexpr uint8_t swordmaster[16 * 32] = {
     0x00, 0x01, 0x02, 0x02, 0x00, 0x00, 0x02, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // Row 15 (back): Boot soles
 };
 
-// C++ function exposed to Lua: set_bg_color(r, g, b)
-static int l_set_bg_color(lua_State* L) {
-    AppState *state = static_cast<AppState*>(lua_touserdata(L, lua_upvalueindex(1)));
-    state->r = static_cast<uint8_t>(luaL_checkinteger(L, 1));
-    state->g = static_cast<uint8_t>(luaL_checkinteger(L, 2));
-    state->b = static_cast<uint8_t>(luaL_checkinteger(L, 3));
-    return 0;
-}
-
 system_t::system_t()
 {
     host = new host_t();
-
+    nerve = new nerve_t(this);
     vdc = new vdc_t();
-    std::memcpy(vdc->ram.data() + 0x30000, swordmaster, sizeof(swordmaster));
-    std::memcpy(vdc->ram.data() + 0x30200, hero, sizeof(hero));
-    std::memcpy(vdc->ram.data() + 0x30400, hydra_data, sizeof(hydra_data));
-    
-    hero_girl = {
-        .gfx_addr = 0x30200,
-        .sprite_w = 10,
-        .sprite_h = 31,
-        .sprite_id = 0
-    };
 
-    hydra = {
-        .gfx_addr = 0x30400,
-        .sprite_w = 20,
-        .sprite_h = 20,
-        .sprite_id = 0
-    };
-
-    // Initialize Lua and register C++ callback
-    state = { 0, 0, 0 };
-    L = luaL_newstate();
-    luaL_openlibs(L);
-
-    std::cout << "[Lua] Release: " << LUA_RELEASE << "\n";
-
-    lua_pushlightuserdata(L, &state);
-    lua_pushcclosure(L, l_set_bg_color, 1);
-    lua_setglobal(L, "set_bg_color");
-
-    // Run an inline Lua script to set initial color and define a key handler
-    const char* lua_script = R"lua(
-        print("Running " .. _VERSION .. " inside hydra!")
-        r = 0
-        g = 0
-        b = 0
-        set_bg_color(r, g, b) -- Initial black
-
-        function on_space_pressed()
-          r = math.random(0, 255)
-          g = math.random(0, 255)
-          b = math.random(0, 255)
-          set_bg_color(r, g, b)
-        end
-    )lua";
-
-    if (luaL_dostring(L, lua_script) != LUA_OK) {
-        std::cerr << "Lua error: " << lua_tostring(L, -1) << "\n";
-        lua_pop(L, 1);
-    }
+    r = 0;
+    g = 0;
+    b = 0;
 }
 
 system_t::~system_t()
 {
-    lua_close(L);
     delete vdc;
+    delete nerve;
     delete host;
 }
 
 void system_t::run()
 {
+    std::memcpy(vdc->ram.data() + 0x30000, swordmaster, sizeof(swordmaster));
+
+    sprite_t hero_girl = {
+        .gfx_addr = 0x30200,
+        .sprite_w = 10,
+        .sprite_h = 31,
+        .sprite_id = 0
+    };
+    std::memcpy(vdc->ram.data() + hero_girl.gfx_addr, hero, sizeof(hero));
+
+    sprite_t hydra = {
+        .gfx_addr = 0x30400,
+        .sprite_w = 20,
+        .sprite_h = 20,
+        .sprite_id = 0
+    };
+    std::memcpy(vdc->ram.data() + 0x30400, hydra_data, sizeof(hydra_data));
+
     typedef struct {
         int x;
         int y;
@@ -175,11 +141,7 @@ void system_t::run()
         }
 
         if (host->key_pressed(input_key_t::space)) {
-            lua_getglobal(L, "on_space_pressed");
-            if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-                std::cerr << "Lua callback error: " << lua_tostring(L, -1) << "\n";
-                lua_pop(L, 1);
-            }
+            nerve->call_if_exists("on_space_pressed");
         }
 
         const bool upside_down = host->key_down(input_key_t::v);
@@ -197,6 +159,19 @@ void system_t::run()
         vdc->blit_tilemap(
             0x000080,
             136, y,
+            3,3,
+            hor_flip,
+            upside_down,
+            hor_double,
+            ver_double,
+            false,
+            true,
+            0x30000,
+            16,16
+        );
+        vdc->blit_tilemap(
+            0x000080,
+            184, -y,
             3,3,
             hor_flip,
             upside_down,
@@ -260,6 +235,6 @@ void system_t::run()
         hydra.dst_y = 64;
         vdc->blit_sprite(&hydra);
 
-        host->video_update_screen(vdc->buffer.data(), state.r, state.g, state.b);
+        host->video_update_screen(vdc->buffer.data(), r, g, b);
     }
 }

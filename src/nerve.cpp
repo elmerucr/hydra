@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <iostream>
 
+#include "host.hpp"
 #include "system.hpp"
+#include "vdc.hpp"
 
 int nerve_t::l_set_bg_color(lua_State *L)
 {
@@ -23,7 +25,10 @@ int nerve_t::l_set_bg_color(lua_State *L)
     const uint8_t g = static_cast<uint8_t>(luaL_checkinteger(L, 2));
     const uint8_t b = static_cast<uint8_t>(luaL_checkinteger(L, 3));
 
-    //sys->set_bg_color(r, g, b);
+    sys->r = r;
+    sys->g = g;
+    sys->b = b;
+    
     return 0;
 }
 
@@ -33,16 +38,31 @@ nerve_t::nerve_t(system_t *owner)
 {
     L = luaL_newstate();
     if (!L) {
-        std::cerr << "[Lua] Failed to create lua_State\n";
+        std::cerr << "[nerve] Failed to create lua_State\n";
         return;
     }
 
     luaL_openlibs(L);
-    std::cout << "[Lua] Release: " << LUA_RELEASE << "\n";
+    std::cout << "[nerve] Release: " << LUA_RELEASE << "\n";
 
     lua_pushlightuserdata(L, sys);
     lua_pushcclosure(L, l_set_bg_color, 1);
     lua_setglobal(L, "set_bg_color");
+
+    run_string(R"lua(
+        print("Running " .. _VERSION .. " inside nerve inside hydra!")
+        r = 0
+        g = 0
+        b = 0
+        set_bg_color(r, g, b) -- Initial black
+
+        function on_space_pressed()
+          r = math.random(0, 255)
+          g = math.random(0, 255)
+          b = math.random(0, 255)
+          set_bg_color(r, g, b)
+        end
+    )lua");
 }
 
 nerve_t::~nerve_t()
